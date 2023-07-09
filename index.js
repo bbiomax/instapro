@@ -1,4 +1,4 @@
-import { getPosts } from "./api.js";
+import { getPosts, allPosts } from "./api.js";
 import { renderAddPostPageComponent } from "./components/add-post-page-component.js";
 import { renderAuthPageComponent } from "./components/auth-page-component.js";
 import {
@@ -57,7 +57,7 @@ export const goToPage = (newPage, data) => {
       return getPosts({ token: getToken() })
         .then((newPosts) => {
           page = POSTS_PAGE;
-          posts = newPosts;
+          posts = allPosts;
           renderApp();
         })
         .catch((error) => {
@@ -83,7 +83,7 @@ export const goToPage = (newPage, data) => {
   throw new Error("страницы не существует");
 };
 
-const renderApp = () => {
+export const renderApp = () => {
   const appEl = document.getElementById("app");
   if (page === LOADING_PAGE) {
     return renderLoadingPageComponent({

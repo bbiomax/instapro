@@ -1,8 +1,13 @@
+import { goToPage, renderApp } from "./index.js";
+import { LOADING_PAGE } from "./routes.js";
+
 // Замени на свой, чтобы получить независимый от других набор данных.
 // "боевая" версия инстапро лежит в ключе prod
-const personalKey = "bbiomax";
+const personalKey = "prod";
 const baseHost = "https://webdev-hw-api.vercel.app";
 const postsHost = `${baseHost}/api/v1/${personalKey}/instapro`;
+
+export let allPosts = [];
 
 export function getPosts({ token }) {
   return fetch(postsHost, {
@@ -15,11 +20,33 @@ export function getPosts({ token }) {
       if (response.status === 401) {
         throw new Error("Нет авторизации");
       }
-
-      return response.json();
+      if (response.status === 200) {
+        return response.json();
+      } if (response.status === 500) {
+        return Promise.reject(new Error('Сервер упал'));
+      } else {
+        return Promise.reject(new Error('Неизвестная ошибка'));
+      }
     })
-    .then((data) => {
-      return data.posts;
+    .then((responseData) => {
+      allPosts = responseData.posts.map((post) => {
+        return {
+          postId: post.id,
+          postUrl: post.imageUrl,
+          postDate: post.createdAt,
+          description: post.description,
+          userId: post.user.id,
+          userName: post.user.name,
+          userUrl: post.user.imageUrl,
+          likes: post.likes,
+          isLiked: post.isLiked
+        }
+      })
+      renderApp();
+    })
+    .catch((error) => {
+      console.log(error);
+      goToPage(LOADING_PAGE);
     });
 }
 
