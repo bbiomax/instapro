@@ -1,13 +1,15 @@
 import { goToPage, renderApp } from "./index.js";
 import { LOADING_PAGE } from "./routes.js";
+import { reRenderLikes } from "./components/posts-page-component.js";
 
 // Замени на свой, чтобы получить независимый от других набор данных.
 // "боевая" версия инстапро лежит в ключе prod
-const personalKey = "prod";
+const personalKey = "bbiomax";
 const baseHost = "https://webdev-hw-api.vercel.app";
 const postsHost = `${baseHost}/api/v1/${personalKey}/instapro`;
 
 export let allPosts = [];
+export let post = [];
 
 export function getPosts({ token }) {
   return fetch(postsHost, {
@@ -57,7 +59,10 @@ export function postNew({ token }, description, imageUrl) {
       Authorization: token,
     },
     body: JSON.stringify({
-      'description': description,
+      'description': description.replaceAll('&', '&amp;')
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;"),
       'imageUrl': imageUrl,
     })
   })
@@ -66,6 +71,9 @@ export function postNew({ token }, description, imageUrl) {
       throw new Error('Произошла ошибка');
     }
     return response.json();
+  })
+  .then((responseData) => {
+    getPosts({token});
   })
 }
 
@@ -113,4 +121,95 @@ export function uploadImage({ file }) {
   }).then((response) => {
     return response.json();
   });
+}
+
+export function userImages({token}, userId) {
+  return fetch(postsHost + '/user-posts/' + userId, {
+    method: "GET",
+    headers: {
+      Authorization: token,
+    }
+  })
+  .then((response) => {
+    if (response.status === 200) {
+      return response.json();
+    } if (response.status === 500) {
+      return Promise.reject(new Error("Сервер упал"));
+    } else {
+      return Promise.reject(new Error("Неизвестная ошибка"));
+    }
+  })
+  .then((responseData) => {
+    allPosts = responseData.posts.map((post) => {
+      return {
+        postId: post.id,
+        postUrl: post.imageUrl,
+        postDate: post.createdAt,
+        description: post.description,
+        userId: post.user.id,
+        userName: post.user.name,
+        userUrl: post.user.imageUrl,
+        likes: post.likes,
+        isLiked: post.isLiked
+      }
+    })
+    renderApp();
+  })
+  .catch((error) => {
+    console.log(error);;
+    goToPage(LOADING_PAGE);
+  });
+}
+
+export function likePost(id, {token}) {
+  return fetch(postsHost + '/' + id + '/like', {
+    method: "POST",
+    headers: {
+      Authorization: token,
+    }
+  })
+  .then((response) => {
+    if (response.status === 200) {
+      return response.json();
+    } if (response.status === 500) {
+      return Promise.reject(new Error("Сервер упал"));
+    } if (response.status === 401) {
+      alert("Только авторизованные пользователи могут ставить лайки");
+      return Promise.reject(new Error("Авторизация не пройдена"));
+    } else {
+      return Promise.reject(new Error("Неизвестная ошибка"));
+    }
+  })
+  .then((responseData) => {
+    post = new Map(Object.entries(responseData.post));
+    reRenderLikes(post);
+  })
+  .catch((error) => {
+    console.log(error);
+  })
+}
+
+export function dislikePost(id, {token}) {
+  return fetch(postsHost + '/' + id + '/dislike', {
+    method: "POST",
+    headers: {
+      Authorization: token,
+    }
+  })
+  .then((response) => {
+    if (response.status === 200) {
+      return response.json(); 
+    } if (response.status === 500) {
+      return Promise.reject(new Error("Сервер упал"));
+    } else {
+      return Promise.reject(new Error("Неизвестная ошибка"));
+    }
+  })
+  .then((responseData) => {
+    post = new Map(Object.entries(responseData.post));
+    reRenderLikes(post);
+  })
+  .catch((error) => {
+    console.log(error);
+  })
 }
